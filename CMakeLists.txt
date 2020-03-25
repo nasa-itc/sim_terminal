@@ -1,8 +1,8 @@
 project(sim_terminal)
 
 find_package(Boost REQUIRED QUIET COMPONENTS system program_options filesystem)
-find_package(ITC_Common REQUIRED COMPONENTS itc_logger)
-find_package(NOSENGINE REQUIRED COMPONENTS common transport client server i2c can spi uart)
+find_package(ITC_Common REQUIRED QUIET COMPONENTS itc_logger)
+find_package(NOSENGINE REQUIRED QUIET COMPONENTS common transport client server i2c can spi uart)
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(
