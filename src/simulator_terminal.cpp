@@ -1,4 +1,4 @@
-/* Copyright (C) 2015 - 2015 National Aeronautics and Space Administration. All Foreign Rights are Reserved to the U.S. Government.
+/* Copyright (C) 2015 - 2021 National Aeronautics and Space Administration. All Foreign Rights are Reserved to the U.S. Government.
 
    This software is provided "as is" without any warranty of any, kind either express, implied, or statutory, including, but not
    limited to, any warranty that the software will conform to, specifications any implied warranties of merchantability, fitness
@@ -384,16 +384,4 @@ namespace Nos3
         return out;
     }
 
-}
-
-int
-main(int argc, char *argv[])
-{
-    std::string simulator_name = "terminal"; // this is the ONLY terminal specific line!
-
-    // Determine the configuration and run the simulator
-    Nos3::SimConfig sc(argc, argv);
-    Nos3::sim_logger->info("main:  %s simulator starting", simulator_name.c_str());
-    sc.run_simulator(simulator_name);
-    Nos3::sim_logger->info("main:  %s simulator terminating", simulator_name.c_str());
 }
