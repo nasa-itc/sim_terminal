@@ -39,7 +39,24 @@ namespace Nos3 {
         }
         try {
             int address = stoi(_target);
-            printf("Result: %d\n", _i2c->i2c_read(address, reinterpret_cast<uint8_t*>(buf), len));
+            NosEngine::I2C::Result result = _i2c->i2c_read(address, reinterpret_cast<uint8_t*>(buf), len);
+            std::cout << "Result: ";
+            switch (result)
+            {
+            case NosEngine::I2C::Result::I2C_SUCCESS:
+                std::cout << "I2C Success";
+                break;
+            case NosEngine::I2C::Result::I2C_ERROR:
+                std::cout << "I2C Error";
+                break;
+            case NosEngine::I2C::Result::I2C_BUSY:
+                std::cout << "I2C Busy";
+                break;
+            default:
+                std::cout << "Unknown";
+                break;
+            }
+            std::cout << std::endl;
         }catch (std::invalid_argument e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid I2C address. To select an address, use SET SIMNODE.";
@@ -92,7 +109,24 @@ namespace Nos3 {
         }
         try {
             int address = stoi(_target);
-            printf("Result: %d\n", _can->can_read(address, reinterpret_cast<uint8_t*>(buf), len));
+            NosEngine::Can::Result result = _can->can_read(address, reinterpret_cast<uint8_t*>(buf), len);
+            std::cout << "Result: ";
+            switch (result)
+            {
+            case NosEngine::Can::Result::CAN_SUCCESS:
+                std::cout << "Can Success";
+                break;
+            case NosEngine::Can::Result::CAN_ERROR:
+                std::cout << "Can Error";
+                break;
+            case NosEngine::Can::Result::CAN_BUSY:
+                std::cout << "Can Busy";
+                break;
+            default:
+                std::cout << "Unknown";
+                break;
+            }
+            std::cout << std::endl;
         }catch (std::invalid_argument e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid CAN identifier. To select an identifier, use SET SIMNODE.";
