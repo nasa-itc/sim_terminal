@@ -22,6 +22,9 @@
 #include <memory>
 #include <stdexcept>
 
+#include <readline/readline.h>
+#include <readline/history.h>
+
 #include <ItcLogger/Logger.hpp>
 #include <Client/Bus.hpp>
 #include <Client/DataNode.hpp>
@@ -306,27 +309,43 @@ namespace Nos3
         return false;
     }
 
+    bool SimTerminal::getline(const std::string& prompt, std::string& input)
+    {
+        bool retval = true;
+        input.clear();
+        char *line_read = readline(prompt.c_str());
+        if (line_read) {
+            if (*line_read) add_history(line_read); // don't add blank lines
+            input.append(line_read);
+            free(line_read);
+            retval = true;
+        } else {
+            retval = false;
+        }
+        return retval;
+    }
+
     void SimTerminal::handle_input(void)
     {
         std::string input, in_upper;
         std::cout << "This is the simulator terminal program.  Type 'HELP' for help." << std::endl << std::endl;
-        print_prompt();
-        while(std::getline(std::cin, input)) // keep looping and getting the next command line
+        while(getline(string_prompt(), input)) // keep looping and getting the next command line
         {
             bool result = process_command(input);
             if(result){
                 break;
             }
-            print_prompt();
         }
 
         std::cout << "SimTerminal is quitting!" << std::endl;
     }
 
-    void SimTerminal::print_prompt(void)
+    std::string SimTerminal::string_prompt(void)
     {
-        std::cout << "SimTerminal:<" << _command_node_name << "@" << _command_bus_name
+        std::stringstream ss;
+        ss  << "SimTerminal:<" << _command_node_name << "@" << _command_bus_name
             << ">:Node:<" << _current_sim_commanded_name << ">:Mode:<" << mode_as_string() << "> $ ";
+        return ss.str();
     }
 
     std::string SimTerminal::mode_as_string(void)

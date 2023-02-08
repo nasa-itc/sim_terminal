@@ -48,17 +48,19 @@ namespace Nos3
         SimTerminal(const boost::property_tree::ptree& config);
 
         void run(void);
+
         void write_message_to_cout(const char* buf, size_t len);
         void write_message_to_cout(const NosEngine::Common::Message& msg);
-        void print_prompt(void);
 
     private:
         // private types
         enum SimTerminalMode {HEX, ASCII};
 
         // private helper methods
+        std::string string_prompt(void);
         void command_callback(const NosEngine::Common::Message& msg);
         bool process_command(std::string input);
+        bool getline(const std::string& prompt, std::string& input);
         void handle_input(void);
         void reset_bus_connection();
         
