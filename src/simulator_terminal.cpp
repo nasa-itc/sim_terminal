@@ -52,12 +52,12 @@ namespace Nos3
 
     // Constructors
     SimTerminal::SimTerminal(const boost::property_tree::ptree& config) : SimIHardwareModel(config),
-        _current_sim_commanded_name(config.get("simulator.hardware-model.sim-commanded", "time")),
-        _command_bus_name(config.get("simulator.hardware-model.start-bus", "command")),
+        _other_node_name(config.get("simulator.hardware-model.sim-commanded", "time")),
+        _bus_name(config.get("simulator.hardware-model.start-bus", "command")),
         _current_in_mode((config.get("simulator.hardware-model.input-mode", "").compare("HEX") == 0) ? HEX : ASCII),
         _current_out_mode((config.get("simulator.hardware-model.output-mode", "").compare("HEX") == 0) ? HEX : ASCII)
     {
-        _connection_string = config.get("common.nos-connection-string", "tcp://127.0.0.1:12001");
+        _nos_connection_string = config.get("common.nos-connection-string", "tcp://127.0.0.1:12001");
         _command_node_name = config.get("simulator.hardware-model.term-node-name", "terminal");
         if (config.get_child_optional("simulator.hardware-model.startup-commands")) 
         {
@@ -106,7 +106,7 @@ namespace Nos3
 
     void SimTerminal::reset_bus_connection(){
          // Figure out where _old_connection lives and what data structure it belongs to
-         if (_command_bus_name.find("i2c") != std::string::npos){
+         if (_bus_name.find("i2c") != std::string::npos){
             int master_address;
             try{
                 master_address = stoi(_command_node_name);
@@ -122,9 +122,9 @@ namespace Nos3
                 // Nos3::sim_logger->debug("reset_bus_connection: deleting old bus connection");
             }
             
-            I2CConnection* i2c = new I2CConnection(master_address, _connection_string, _command_bus_name);
+            I2CConnection* i2c = new I2CConnection(master_address, _nos_connection_string, _bus_name);
             _bus_connection.reset(i2c);
-        } else if (_command_bus_name.find("can") != std::string::npos){
+        } else if (_bus_name.find("can") != std::string::npos){
             int master_identifier;
             try{
                 master_identifier = stoi(_command_node_name);
@@ -140,24 +140,24 @@ namespace Nos3
                 // Nos3::sim_logger->debug("reset_bus_connection: deleting old bus connection");
             }
             
-            CANConnection* can = new CANConnection(master_identifier, _connection_string, _command_bus_name);
+            CANConnection* can = new CANConnection(master_identifier, _nos_connection_string, _bus_name);
             _bus_connection.reset(can);
-        } else if(_command_bus_name.find("spi") != std::string::npos){
+        } else if(_bus_name.find("spi") != std::string::npos){
             // if old connection exists, free it
             if (_bus_connection.get() != nullptr) {
                 BusConnection* old = _bus_connection.release();
                 delete old;
                 // Nos3::sim_logger->debug("reset_bus_connection: deleting old bus connection");
             }
-           _bus_connection.reset(new SPIConnection(_connection_string, _command_bus_name));
-        }else if(_command_bus_name.find("uart") != std::string::npos || _command_bus_name.find("usart") != std::string::npos){
+           _bus_connection.reset(new SPIConnection(_nos_connection_string, _bus_name));
+        }else if(_bus_name.find("uart") != std::string::npos || _bus_name.find("usart") != std::string::npos){
             // if old connection exists, free it
             if (_bus_connection.get() != nullptr) {
                 BusConnection* old = _bus_connection.release();
                 delete old;
                 // Nos3::sim_logger->debug("reset_bus_connection: deleting old bus connection");
             }
-            _bus_connection.reset(new UartConnection(this, _command_node_name, _connection_string, _command_bus_name));
+            _bus_connection.reset(new UartConnection(this, _command_node_name, _nos_connection_string, _bus_name));
         }else{
             // if old connection exists, free it
             if (_bus_connection.get() != nullptr) {
@@ -165,9 +165,9 @@ namespace Nos3
                 delete old;
                 // Nos3::sim_logger->debug("reset_bus_connection: deleting old bus connection");
             }
-            _bus_connection.reset(new BaseConnection(this, _command_node_name, _connection_string, _command_bus_name));
+            _bus_connection.reset(new BaseConnection(this, _command_node_name, _nos_connection_string, _bus_name));
         }
-        _bus_connection->set_target(_current_sim_commanded_name);
+        _bus_connection->set_target(_other_node_name);
     }
 
     bool SimTerminal::process_command(std::string input){
@@ -192,18 +192,18 @@ namespace Nos3
         } 
         else if (in_upper.compare(0, 12, "SET SIMNODE ") == 0) 
         {
-            _current_sim_commanded_name = input.substr(12, input.size() - 12);
-            _bus_connection->set_target(_current_sim_commanded_name);
+            _other_node_name = input.substr(12, input.size() - 12);
+            _bus_connection->set_target(_other_node_name);
         } 
         else if (in_upper.compare(0, 11, "SET SIMBUS ") == 0) 
         {
 
             std::string new_command_bus_name = input.substr(11, input.size() - 11);
-            if(new_command_bus_name.compare(_command_bus_name) != 0){
-                _command_bus_name = new_command_bus_name;
+            if(new_command_bus_name.compare(_bus_name) != 0){
+                _bus_name = new_command_bus_name;
                 reset_bus_connection();
             }else{
-                std::cout << "Already on bus " << _command_bus_name << std::endl;
+                std::cout << "Already on bus " << _bus_name << std::endl;
             }
         } 
         else if (in_upper.compare(0, 13, "SET TERMNODE ") == 0) 
@@ -343,8 +343,8 @@ namespace Nos3
     std::string SimTerminal::string_prompt(void)
     {
         std::stringstream ss;
-        ss  << "SimTerminal:<" << _command_node_name << "@" << _command_bus_name
-            << ">:Node:<" << _current_sim_commanded_name << ">:Mode:<" << mode_as_string() << "> $ ";
+        ss  << "SimTerminal:<" << _command_node_name << "@" << _bus_name
+            << ">:Node:<" << _other_node_name << ">:Mode:<" << mode_as_string() << "> $ ";
         return ss.str();
     }
 
