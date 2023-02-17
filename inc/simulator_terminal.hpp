@@ -75,6 +75,7 @@ namespace Nos3
         bool set_bus_type(std::string type);
 
         // Private data
+        std::map<std::string, std::string> _connection_strings;
         std::string _nos_connection_string;
         std::string _bus_name;
         BusType _bus_type;

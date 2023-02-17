@@ -65,6 +65,17 @@ namespace Nos3
         _nos_connection_string = config.get("common.nos-connection-string", "tcp://127.0.0.1:12001");
         _command_node_name = config.get("simulator.hardware-model.term-node-name", "terminal");
 
+        _connection_strings["default"] = _nos_connection_string;
+
+        BOOST_FOREACH(const boost::property_tree::ptree::value_type &v, config.get_child("simulator.hardware-model.other-nos-connections")) 
+        {
+            std::string name = v.second.get("name", "");
+            std::string connection_string = v.second.get("connection-string", "");
+            if ((name.compare("") != 0) && (name.compare("default") != 0)) {
+                _connection_strings[name] = connection_string;
+            }
+        }
+
         reset_bus_connection();
 
         if (config.get_child_optional("simulator.hardware-model.startup-commands")) 
@@ -196,6 +207,8 @@ namespace Nos3
             std::cout << "    SET TERMNODE <term node> - Sets the name of this terminal's node to '<term node>'" << std::endl;
             std::cout << "    SET <ASCII|HEX> <IN|OUT> - Sets the terminal mode to ASCII mode or HEX mode; optionally IN or OUT only" << std::endl;
             std::cout << "    SET PROMPT <LONG|SHORT> - Sets the prompt to long or short format" << std::endl;
+            std::cout << "    LIST NOS CONNECTIONS - Lists all of the known NOS Engine connection strings along with a name for selecting them" << std::endl;
+            std::cout << "    SET NOS CONNECTION <name> - Sets the NOS Engine connection to the one associated with <name> (initially \"default\")" << std::endl;
             std::cout << "    WRITE <data> - Writes <data> to the current node. Interprets <data> as ascii or hex depending on input setting." << std::endl;
             std::cout << "    READ <length> - Reads the given number of bytes from the current node. Only works on SPI and I2C buses." << std::endl;
             std::cout << "    TRANSACT <read length> <data> - Performs a transaction. Sends the given data, and expects a return value of the given length." << std::endl;
@@ -247,6 +260,24 @@ namespace Nos3
             if (prompt_type.compare("LONG") == 0) _long_prompt = true;
             else if (prompt_type.compare("SHORT") == 0) _long_prompt = false;
             else std::cout << "Invalid prompt length specified" << prompt_type << std::endl;
+        }
+        else if (in_upper.compare(0, 20, "LIST NOS CONNECTIONS") == 0) 
+        {
+            for (std::map<std::string, std::string>::const_iterator it = _connection_strings.begin(); it != _connection_strings.end(); it++)
+                std::cout << "    name=" << it->first << ", connection string=" << it->second << std::endl;
+        }
+        else if (in_upper.compare(0, 19, "SET NOS CONNECTION ") == 0) 
+        {
+            std::string name = input.substr(19, input.size() - 19);
+            try {
+                std::string connection_string = _connection_strings.at(name);
+                if (connection_string.compare(_nos_connection_string) != 0) {
+                    _nos_connection_string = connection_string;
+                    reset_bus_connection();
+                }
+            } catch (std::exception&) {
+                std::cout << "Invalid connection name " << name << std::endl;
+            }
         }
         else if (in_upper.compare(0, 4, "QUIT") == 0) 
         {
