@@ -209,6 +209,7 @@ namespace Nos3
             std::cout << "    SET PROMPT <LONG|SHORT> - Sets the prompt to long or short format" << std::endl;
             std::cout << "    LIST NOS CONNECTIONS - Lists all of the known NOS Engine connection strings along with a name for selecting them" << std::endl;
             std::cout << "    SET NOS CONNECTION <name> - Sets the NOS Engine connection to the one associated with <name> (initially \"default\")" << std::endl;
+            std::cout << "    ADD NOS CONNECTION <name> <uri> - Adds NOS Engine URI connection string <uri> to the list of known connection strings and associates it with <name>" << std::endl;
             std::cout << "    WRITE <data> - Writes <data> to the current node. Interprets <data> as ascii or hex depending on input setting." << std::endl;
             std::cout << "    READ <length> - Reads the given number of bytes from the current node. Only works on SPI and I2C buses." << std::endl;
             std::cout << "    TRANSACT <read length> <data> - Performs a transaction. Sends the given data, and expects a return value of the given length." << std::endl;
@@ -276,7 +277,21 @@ namespace Nos3
                     reset_bus_connection();
                 }
             } catch (std::exception&) {
-                std::cout << "Invalid connection name " << name << std::endl;
+                std::cout << "Invalid connection name \"" << name << "\"" << std::endl;
+            }
+        }
+        else if (in_upper.compare(0, 19, "ADD NOS CONNECTION ") == 0) 
+        {
+            std::string token;
+            std::vector<std::string> tokens;
+            std::stringstream ss(input);
+            while (std::getline(ss, token, ' ')) {
+                tokens.push_back(token);
+            }
+            if (tokens.size() == 5) {
+                _connection_strings[tokens[3]] = tokens[4];
+            } else {
+                std::cout << "Invalid ADD NOS CONNECTION command \"" << input << "\".  Type \"HELP\" for help." << std::endl;
             }
         }
         else if (in_upper.compare(0, 4, "QUIT") == 0) 
@@ -362,7 +377,7 @@ namespace Nos3
         }
         else if (input.length() > 0)
         {
-            std::cout << "Unrecognized command " << input << ". Type \"HELP\" for help." << std::endl;
+            std::cout << "Unrecognized command \"" << input << "\". Type \"HELP\" for help." << std::endl;
         }
         return false;
     }
