@@ -63,7 +63,7 @@ namespace Nos3
             sim_logger->error("Invalid bus type setting %s.  Setting bus type to COMMAND.", bus_type.c_str());
         }
         _nos_connection_string = config.get("common.nos-connection-string", "tcp://127.0.0.1:12001");
-        _command_node_name = config.get("simulator.hardware-model.term-node-name", "terminal");
+        _command_node_name = config.get("simulator.hardware-model.terminal-node-name", "terminal");
 
         _connection_strings["default"] = _nos_connection_string;
 
@@ -75,6 +75,8 @@ namespace Nos3
                 _connection_strings[name] = connection_string;
             }
         }
+
+        _active_connection_name = "default";
 
         reset_bus_connection();
 
@@ -274,6 +276,7 @@ namespace Nos3
                 std::string connection_string = _connection_strings.at(name);
                 if (connection_string.compare(_nos_connection_string) != 0) {
                     _nos_connection_string = connection_string;
+                    _active_connection_name = name;
                     reset_bus_connection();
                 }
             } catch (std::exception&) {
@@ -417,10 +420,11 @@ namespace Nos3
     {
         std::stringstream ss;
         if (_long_prompt) {
-            ss  << "SimTerminal:MyNode:<" << _command_node_name << ">" 
-                << ":OtherNode:<" << _other_node_name  << ">" 
-                << ":TheBus:@(" << _bus_type_string[_bus_type] << ")" << _bus_name << "@"
-                << ":Mode:[" << mode_as_string() << "] $ ";
+            ss  << _command_node_name 
+                << "-" << _active_connection_name
+                << "<" << _other_node_name << ">" 
+                << ":(" << _bus_type_string[_bus_type] << ")" << _bus_name
+                << ":[" << mode_as_string() << "] $ ";
         } else {
             ss  <<          _command_node_name
                 << "-->" << _other_node_name

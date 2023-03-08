@@ -77,6 +77,7 @@ namespace Nos3
         // Private data
         std::map<std::string, std::string> _connection_strings;
         std::string _nos_connection_string;
+        std::string _active_connection_name;
         std::string _bus_name;
         BusType _bus_type;
         std::string _other_node_name;
