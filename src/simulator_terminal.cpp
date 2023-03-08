@@ -52,22 +52,43 @@ namespace Nos3
 
     // Constructors
     SimTerminal::SimTerminal(const boost::property_tree::ptree& config) : SimIHardwareModel(config),
-        _current_sim_commanded_name(config.get("simulator.hardware-model.sim-commanded", "time")),
-        _command_bus_name(config.get("simulator.hardware-model.start-bus", "command")),
+        _other_node_name(config.get("simulator.hardware-model.other-node-name", "time")),
+        _bus_name(config.get("simulator.hardware-model.bus.name", "command")),
         _current_in_mode((config.get("simulator.hardware-model.input-mode", "").compare("HEX") == 0) ? HEX : ASCII),
-        _current_out_mode((config.get("simulator.hardware-model.output-mode", "").compare("HEX") == 0) ? HEX : ASCII)
+        _current_out_mode((config.get("simulator.hardware-model.output-mode", "").compare("HEX") == 0) ? HEX : ASCII),
+        _long_prompt(true)
     {
-        _connection_string = config.get("common.nos-connection-string", "tcp://127.0.0.1:12001");
-        _command_node_name = config.get("simulator.hardware-model.term-node-name", "terminal");
+        std::string bus_type = config.get("simulator.hardware-model.bus.name", "command");
+        if (!set_bus_type(bus_type)) {
+            sim_logger->error("Invalid bus type setting %s.  Setting bus type to COMMAND.", bus_type.c_str());
+        }
+        _nos_connection_string = config.get("common.nos-connection-string", "tcp://127.0.0.1:12001");
+        _command_node_name = config.get("simulator.hardware-model.terminal-node-name", "terminal");
+
+        _connection_strings["default"] = _nos_connection_string;
+
+        BOOST_FOREACH(const boost::property_tree::ptree::value_type &v, config.get_child("simulator.hardware-model.other-nos-connections")) 
+        {
+            std::string name = v.second.get("name", "");
+            std::string connection_string = v.second.get("connection-string", "");
+            if ((name.compare("") != 0) && (name.compare("default") != 0)) {
+                _connection_strings[name] = connection_string;
+            }
+        }
+
+        _active_connection_name = "default";
+
+        reset_bus_connection();
+
         if (config.get_child_optional("simulator.hardware-model.startup-commands")) 
         {
             BOOST_FOREACH(const boost::property_tree::ptree::value_type &v, config.get_child("simulator.hardware-model.startup-commands")) 
             {
-                process_command(v.second.data());
+                if (v.first.compare("command") == 0) {
+                    process_command(v.second.data());
+                }
             }
         }
-
-        reset_bus_connection();
     }
 
     /// @name Mutating public worker methods
@@ -106,7 +127,7 @@ namespace Nos3
 
     void SimTerminal::reset_bus_connection(){
          // Figure out where _old_connection lives and what data structure it belongs to
-         if (_command_bus_name.find("i2c") != std::string::npos){
+         if (_bus_type == I2C){
             int master_address;
             try{
                 master_address = stoi(_command_node_name);
@@ -122,9 +143,9 @@ namespace Nos3
                 // Nos3::sim_logger->debug("reset_bus_connection: deleting old bus connection");
             }
             
-            I2CConnection* i2c = new I2CConnection(master_address, _connection_string, _command_bus_name);
+            I2CConnection* i2c = new I2CConnection(master_address, _nos_connection_string, _bus_name);
             _bus_connection.reset(i2c);
-        } else if (_command_bus_name.find("can") != std::string::npos){
+        } else if (_bus_type == CAN){
             int master_identifier;
             try{
                 master_identifier = stoi(_command_node_name);
@@ -140,34 +161,34 @@ namespace Nos3
                 // Nos3::sim_logger->debug("reset_bus_connection: deleting old bus connection");
             }
             
-            CANConnection* can = new CANConnection(master_identifier, _connection_string, _command_bus_name);
+            CANConnection* can = new CANConnection(master_identifier, _nos_connection_string, _bus_name);
             _bus_connection.reset(can);
-        } else if(_command_bus_name.find("spi") != std::string::npos){
+        } else if(_bus_type == SPI){
             // if old connection exists, free it
             if (_bus_connection.get() != nullptr) {
                 BusConnection* old = _bus_connection.release();
                 delete old;
                 // Nos3::sim_logger->debug("reset_bus_connection: deleting old bus connection");
             }
-           _bus_connection.reset(new SPIConnection(_connection_string, _command_bus_name));
-        }else if(_command_bus_name.find("uart") != std::string::npos || _command_bus_name.find("usart") != std::string::npos){
+           _bus_connection.reset(new SPIConnection(_nos_connection_string, _bus_name));
+        }else if(_bus_type == UART){
             // if old connection exists, free it
             if (_bus_connection.get() != nullptr) {
                 BusConnection* old = _bus_connection.release();
                 delete old;
                 // Nos3::sim_logger->debug("reset_bus_connection: deleting old bus connection");
             }
-            _bus_connection.reset(new UartConnection(this, _command_node_name, _connection_string, _command_bus_name));
-        }else{
+            _bus_connection.reset(new UartConnection(this, _command_node_name, _nos_connection_string, _bus_name));
+        }else{ // not differentiating between BASE and COMMAND types... yet
             // if old connection exists, free it
             if (_bus_connection.get() != nullptr) {
                 BusConnection* old = _bus_connection.release();
                 delete old;
                 // Nos3::sim_logger->debug("reset_bus_connection: deleting old bus connection");
             }
-            _bus_connection.reset(new BaseConnection(this, _command_node_name, _connection_string, _command_bus_name));
+            _bus_connection.reset(new BaseConnection(this, _command_node_name, _nos_connection_string, _bus_name));
         }
-        _bus_connection->set_target(_current_sim_commanded_name);
+        _bus_connection->set_target(_other_node_name);
     }
 
     bool SimTerminal::process_command(std::string input){
@@ -183,8 +204,14 @@ namespace Nos3
             std::cout << "    QUIT - Exits the program" << std::endl;
             std::cout << "    SET SIMNODE <sim node> - Sets the simulator node being commanded to '<sim node>'" << std::endl;
             std::cout << "    SET SIMBUS <sim bus> - Sets the simulator bus for the simulator node being commanded to '<sim bus>'" << std::endl;
+            std::cout << "    SET SIMBUSTYPE <bus type> - Sets the simulator bus type for the simulator node being commanded to '<bus type>'" << std::endl; 
+            std::cout << "        (BASE, I2C, CAN, SPI, UART, COMMAND are valid)" << std::endl;
             std::cout << "    SET TERMNODE <term node> - Sets the name of this terminal's node to '<term node>'" << std::endl;
             std::cout << "    SET <ASCII|HEX> <IN|OUT> - Sets the terminal mode to ASCII mode or HEX mode; optionally IN or OUT only" << std::endl;
+            std::cout << "    SET PROMPT <LONG|SHORT> - Sets the prompt to long or short format" << std::endl;
+            std::cout << "    LIST NOS CONNECTIONS - Lists all of the known NOS Engine connection strings along with a name for selecting them" << std::endl;
+            std::cout << "    SET NOS CONNECTION <name> - Sets the NOS Engine connection to the one associated with <name> (initially \"default\")" << std::endl;
+            std::cout << "    ADD NOS CONNECTION <name> <uri> - Adds NOS Engine URI connection string <uri> to the list of known connection strings and associates it with <name>" << std::endl;
             std::cout << "    WRITE <data> - Writes <data> to the current node. Interprets <data> as ascii or hex depending on input setting." << std::endl;
             std::cout << "    READ <length> - Reads the given number of bytes from the current node. Only works on SPI and I2C buses." << std::endl;
             std::cout << "    TRANSACT <read length> <data> - Performs a transaction. Sends the given data, and expects a return value of the given length." << std::endl;
@@ -192,18 +219,26 @@ namespace Nos3
         } 
         else if (in_upper.compare(0, 12, "SET SIMNODE ") == 0) 
         {
-            _current_sim_commanded_name = input.substr(12, input.size() - 12);
-            _bus_connection->set_target(_current_sim_commanded_name);
+            _other_node_name = input.substr(12, input.size() - 12);
+            _bus_connection->set_target(_other_node_name);
         } 
         else if (in_upper.compare(0, 11, "SET SIMBUS ") == 0) 
         {
-
             std::string new_command_bus_name = input.substr(11, input.size() - 11);
-            if(new_command_bus_name.compare(_command_bus_name) != 0){
-                _command_bus_name = new_command_bus_name;
+            if(new_command_bus_name.compare(_bus_name) != 0){
+                _bus_name = new_command_bus_name;
                 reset_bus_connection();
             }else{
-                std::cout << "Already on bus " << _command_bus_name << std::endl;
+                std::cout << "Already on bus " << _bus_name << std::endl;
+            }
+        } 
+        else if (in_upper.compare(0, 15, "SET SIMBUSTYPE ") == 0) 
+        {
+            std::string new_command_bus_type = input.substr(15, input.size() - 15);
+            if (set_bus_type(new_command_bus_type)) {
+                reset_bus_connection();
+            } else {
+                 std::cout << "Invalid bus type setting " << new_command_bus_type << ".  Not changing bus type." << std::endl;
             }
         } 
         else if (in_upper.compare(0, 13, "SET TERMNODE ") == 0) 
@@ -221,6 +256,47 @@ namespace Nos3
             if ((input.size() == 7) || (in_upper.compare(0, 10, "SET HEX IN") == 0)) _current_in_mode = HEX;
             if ((input.size() == 7) || (in_upper.compare(0, 11, "SET HEX OUT") == 0)) _current_out_mode = HEX;
         } 
+        else if (in_upper.compare(0, 11, "SET PROMPT ") == 0) 
+        {
+            std::string prompt_type = input.substr(11, input.size() - 11);
+            boost::to_upper(prompt_type);
+            if (prompt_type.compare("LONG") == 0) _long_prompt = true;
+            else if (prompt_type.compare("SHORT") == 0) _long_prompt = false;
+            else std::cout << "Invalid prompt length specified" << prompt_type << std::endl;
+        }
+        else if (in_upper.compare(0, 20, "LIST NOS CONNECTIONS") == 0) 
+        {
+            for (std::map<std::string, std::string>::const_iterator it = _connection_strings.begin(); it != _connection_strings.end(); it++)
+                std::cout << "    name=" << it->first << ", connection string=" << it->second << std::endl;
+        }
+        else if (in_upper.compare(0, 19, "SET NOS CONNECTION ") == 0) 
+        {
+            std::string name = input.substr(19, input.size() - 19);
+            try {
+                std::string connection_string = _connection_strings.at(name);
+                if (connection_string.compare(_nos_connection_string) != 0) {
+                    _nos_connection_string = connection_string;
+                    _active_connection_name = name;
+                    reset_bus_connection();
+                }
+            } catch (std::exception&) {
+                std::cout << "Invalid connection name \"" << name << "\"" << std::endl;
+            }
+        }
+        else if (in_upper.compare(0, 19, "ADD NOS CONNECTION ") == 0) 
+        {
+            std::string token;
+            std::vector<std::string> tokens;
+            std::stringstream ss(input);
+            while (std::getline(ss, token, ' ')) {
+                tokens.push_back(token);
+            }
+            if (tokens.size() == 5) {
+                _connection_strings[tokens[3]] = tokens[4];
+            } else {
+                std::cout << "Invalid ADD NOS CONNECTION command \"" << input << "\".  Type \"HELP\" for help." << std::endl;
+            }
+        }
         else if (in_upper.compare(0, 4, "QUIT") == 0) 
         {
             return true;
@@ -304,7 +380,7 @@ namespace Nos3
         }
         else if (input.length() > 0)
         {
-            std::cout << "Unrecognized command. Type \"HELP\" for help." << std::endl;
+            std::cout << "Unrecognized command \"" << input << "\". Type \"HELP\" for help." << std::endl;
         }
         return false;
     }
@@ -343,18 +419,35 @@ namespace Nos3
     std::string SimTerminal::string_prompt(void)
     {
         std::stringstream ss;
-        ss  << "SimTerminal:<" << _command_node_name << "@" << _command_bus_name
-            << ">:Node:<" << _current_sim_commanded_name << ">:Mode:<" << mode_as_string() << "> $ ";
+        if (_long_prompt) {
+            ss  << _command_node_name 
+                << "-" << _active_connection_name
+                << "<" << _other_node_name << ">" 
+                << ":(" << _bus_type_string[_bus_type] << ")" << _bus_name
+                << ":[" << mode_as_string() << "] $ ";
+        } else {
+            ss  <<          _command_node_name
+                << "-->" << _other_node_name
+                << "@(" << _bus_type_string[_bus_type] << ")" << _bus_name
+                << "[" << mode_as_string() << "] $ ";
+        }
         return ss.str();
     }
 
     std::string SimTerminal::mode_as_string(void)
     {
         std::string mode;
-        if (_current_in_mode == ASCII) mode.append("IN=ASCII:");
-        if (_current_in_mode == HEX) mode.append("IN=HEX:");
-        if (_current_out_mode == ASCII) mode.append("OUT=ASCII");
-        if (_current_out_mode == HEX) mode.append("OUT=HEX");
+        if (_long_prompt) {
+            if (_current_in_mode == ASCII) mode.append("IN=ASCII:");
+            if (_current_in_mode == HEX) mode.append("IN=HEX:");
+            if (_current_out_mode == ASCII) mode.append("OUT=ASCII");
+            if (_current_out_mode == HEX) mode.append("OUT=HEX");
+        } else {
+            if (_current_in_mode == ASCII) mode.append("I=A:");
+            if (_current_in_mode == HEX) mode.append("I=H:");
+            if (_current_out_mode == ASCII) mode.append("O=A");
+            if (_current_out_mode == HEX) mode.append("O=H");
+        }
         return mode;
     }
 
@@ -403,4 +496,25 @@ namespace Nos3
         return out;
     }
 
+    bool SimTerminal::set_bus_type(std::string type)
+    {
+        bool succeeded = true;
+        boost::to_upper(type);
+        if (type.compare("BASE") == 0) {
+            _bus_type = BASE;
+        } else if (type.compare("I2C") == 0) {
+            _bus_type = I2C;
+        } else if (type.compare("CAN") == 0) {
+            _bus_type = CAN;
+        } else if (type.compare("SPI") == 0) {
+            _bus_type = SPI;
+        } else if (type.compare("UART") == 0) {
+            _bus_type = UART;
+        } else if (type.compare("COMMAND") == 0) {
+            _bus_type = COMMAND;
+        } else {
+            succeeded = false;
+        }
+        return succeeded;
+    }
 }

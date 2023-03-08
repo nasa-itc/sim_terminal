@@ -55,6 +55,8 @@ namespace Nos3
     private:
         // private types
         enum SimTerminalMode {HEX, ASCII};
+        enum BusType {BASE, I2C, CAN, SPI, UART, COMMAND};
+        const std::string _bus_type_string[6] = {"BASE", "I2C", "CAN", "SPI", "UART", "COMMAND"};
 
         // private helper methods
         std::string string_prompt(void);
@@ -70,14 +72,19 @@ namespace Nos3
         std::string convert_asciihex_to_hexhex(std::string in);
         uint8_t convert_asciihexcharpair_to_hexhexchar(char in1, char in2);
         uint8_t convert_asciihexchar_to_hexhexchar(char in);
+        bool set_bus_type(std::string type);
 
         // Private data
-        std::string _connection_string;
-        std::string _current_sim_commanded_name;
-        std::string _command_bus_name;
+        std::map<std::string, std::string> _connection_strings;
+        std::string _nos_connection_string;
+        std::string _active_connection_name;
+        std::string _bus_name;
+        BusType _bus_type;
+        std::string _other_node_name;
         std::unique_ptr<class BusConnection> _bus_connection;
         enum SimTerminalMode _current_in_mode;
         enum SimTerminalMode _current_out_mode;
+        bool _long_prompt;
     };
 }
 
