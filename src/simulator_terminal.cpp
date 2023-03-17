@@ -131,9 +131,11 @@ namespace Nos3
         std::cout << "This is the simulator terminal program.  Type 'HELP' for help." << std::endl << std::endl;
         while(getline(string_prompt(), input)) // keep looping and getting the next command line
         {
-            bool result = process_command(input);
-            if(result){
+            std::string result = process_command(input);
+            if (result.compare("QUIT") == 0) {
                 break;
+            } else {
+                std::cout << result;
             }
         }
 
@@ -174,31 +176,32 @@ namespace Nos3
         return retval;
     }
 
-    bool SimTerminal::process_command(std::string input){
+    std::string SimTerminal::process_command(std::string input){
         std::string in_upper = input;
         boost::to_upper(in_upper);
+        std::stringstream ss;
 
         if (in_upper.compare(0, 4, "HELP") == 0) 
         {
-            std::cout << "This is help for the simulator terminal program." << std::endl;
-            std::cout << "  The prompt shows the <simulator terminal node name@simulator bus name> and <simulator node being commanded> " << std::endl;
-            std::cout << "  Commands:" << std::endl;
-            std::cout << "    HELP - Displays this help" << std::endl;
-            std::cout << "    QUIT - Exits the program" << std::endl;
-            std::cout << "    SET SIMNODE <sim node> - Sets the simulator node being commanded to '<sim node>'" << std::endl;
-            std::cout << "    SET SIMBUS <sim bus> - Sets the simulator bus for the simulator node being commanded to '<sim bus>'" << std::endl;
-            std::cout << "    SET SIMBUSTYPE <bus type> - Sets the simulator bus type for the simulator node being commanded to '<bus type>'" << std::endl; 
-            std::cout << "        (BASE, I2C, CAN, SPI, UART, COMMAND are valid)" << std::endl;
-            std::cout << "    SET TERMNODE <term node> - Sets the name of this terminal's node to '<term node>'" << std::endl;
-            std::cout << "    SET <ASCII|HEX> <IN|OUT> - Sets the terminal mode to ASCII mode or HEX mode; optionally IN or OUT only" << std::endl;
-            std::cout << "    SET PROMPT <LONG|SHORT|NONE> - Sets the prompt to long format, short format, or none" << std::endl;
-            std::cout << "    LIST NOS CONNECTIONS - Lists all of the known NOS Engine connection strings along with a name for selecting them" << std::endl;
-            std::cout << "    SET NOS CONNECTION <name> - Sets the NOS Engine connection to the one associated with <name> (initially \"default\")" << std::endl;
-            std::cout << "    ADD NOS CONNECTION <name> <uri> - Adds NOS Engine URI connection string <uri> to the list of known connection strings and associates it with <name>" << std::endl;
-            std::cout << "    WRITE <data> - Writes <data> to the current node. Interprets <data> as ascii or hex depending on input setting." << std::endl;
-            std::cout << "    READ <length> - Reads the given number of bytes from the current node. Only works on SPI and I2C buses." << std::endl;
-            std::cout << "    TRANSACT <read length> <data> - Performs a transaction. Sends the given data, and expects a return value of the given length." << std::endl;
-            std::cout << "             Interprets everything after the first space after <read length> as data to be written." << std::endl;
+            ss << "This is help for the simulator terminal program." << std::endl;
+            ss << "  The prompt shows the <simulator terminal node name@simulator bus name> and <simulator node being commanded> " << std::endl;
+            ss << "  Commands:" << std::endl;
+            ss << "    HELP - Displays this help" << std::endl;
+            ss << "    QUIT - Exits the program" << std::endl;
+            ss << "    SET SIMNODE <sim node> - Sets the simulator node being commanded to '<sim node>'" << std::endl;
+            ss << "    SET SIMBUS <sim bus> - Sets the simulator bus for the simulator node being commanded to '<sim bus>'" << std::endl;
+            ss << "    SET SIMBUSTYPE <bus type> - Sets the simulator bus type for the simulator node being commanded to '<bus type>'" << std::endl; 
+            ss << "        (BASE, I2C, CAN, SPI, UART, COMMAND are valid)" << std::endl;
+            ss << "    SET TERMNODE <term node> - Sets the name of this terminal's node to '<term node>'" << std::endl;
+            ss << "    SET <ASCII|HEX> <IN|OUT> - Sets the terminal mode to ASCII mode or HEX mode; optionally IN or OUT only" << std::endl;
+            ss << "    SET PROMPT <LONG|SHORT|NONE> - Sets the prompt to long format, short format, or none" << std::endl;
+            ss << "    LIST NOS CONNECTIONS - Lists all of the known NOS Engine connection strings along with a name for selecting them" << std::endl;
+            ss << "    SET NOS CONNECTION <name> - Sets the NOS Engine connection to the one associated with <name> (initially \"default\")" << std::endl;
+            ss << "    ADD NOS CONNECTION <name> <uri> - Adds NOS Engine URI connection string <uri> to the list of known connection strings and associates it with <name>" << std::endl;
+            ss << "    WRITE <data> - Writes <data> to the current node. Interprets <data> as ascii or hex depending on input setting." << std::endl;
+            ss << "    READ <length> - Reads the given number of bytes from the current node. Only works on SPI and I2C buses." << std::endl;
+            ss << "    TRANSACT <read length> <data> - Performs a transaction. Sends the given data, and expects a return value of the given length." << std::endl;
+            ss << "             Interprets everything after the first space after <read length> as data to be written." << std::endl;
         } 
         else if (in_upper.compare(0, 12, "SET SIMNODE ") == 0) 
         {
@@ -212,7 +215,7 @@ namespace Nos3
                 _bus_name = new_command_bus_name;
                 reset_bus_connection();
             }else{
-                std::cout << "Already on bus " << _bus_name << std::endl;
+                ss << "Already on bus " << _bus_name << std::endl;
             }
         } 
         else if (in_upper.compare(0, 15, "SET SIMBUSTYPE ") == 0) 
@@ -221,7 +224,7 @@ namespace Nos3
             if (set_bus_type(new_command_bus_type)) {
                 reset_bus_connection();
             } else {
-                 std::cout << "Invalid bus type setting " << new_command_bus_type << ".  Not changing bus type." << std::endl;
+                 ss << "Invalid bus type setting " << new_command_bus_type << ".  Not changing bus type." << std::endl;
             }
         } 
         else if (in_upper.compare(0, 13, "SET TERMNODE ") == 0) 
@@ -246,12 +249,12 @@ namespace Nos3
             if (prompt_type.compare("LONG") == 0) _prompt = LONG;
             else if (prompt_type.compare("SHORT") == 0) _prompt = SHORT;
             else if (prompt_type.compare("NONE") == 0) _prompt = NONE;
-            else std::cout << "Invalid prompt length specified" << prompt_type << std::endl;
+            else ss << "Invalid prompt length specified" << prompt_type << std::endl;
         }
         else if (in_upper.compare(0, 20, "LIST NOS CONNECTIONS") == 0) 
         {
             for (std::map<std::string, std::string>::const_iterator it = _connection_strings.begin(); it != _connection_strings.end(); it++)
-                std::cout << "    name=" << it->first << ", connection string=" << it->second << std::endl;
+                ss << "    name=" << it->first << ", connection string=" << it->second << std::endl;
         }
         else if (in_upper.compare(0, 19, "SET NOS CONNECTION ") == 0) 
         {
@@ -264,7 +267,7 @@ namespace Nos3
                     reset_bus_connection();
                 }
             } catch (std::exception&) {
-                std::cout << "Invalid connection name \"" << name << "\"" << std::endl;
+                ss << "Invalid connection name \"" << name << "\"" << std::endl;
             }
         }
         else if (in_upper.compare(0, 19, "ADD NOS CONNECTION ") == 0) 
@@ -278,95 +281,88 @@ namespace Nos3
             if (tokens.size() == 5) {
                 _connection_strings[tokens[3]] = tokens[4];
             } else {
-                std::cout << "Invalid ADD NOS CONNECTION command \"" << input << "\".  Type \"HELP\" for help." << std::endl;
+                ss << "Invalid ADD NOS CONNECTION command \"" << input << "\".  Type \"HELP\" for help." << std::endl;
             }
         }
         else if (in_upper.compare(0, 4, "QUIT") == 0) 
         {
-            return true;
+            ss << "QUIT";
         }
         else if (in_upper.compare(0, 6, "WRITE ") == 0)
         {
             if(_bus_connection.get() == nullptr){
-                std::cout << "Connection has not been instantiated. Connect to a bus with SET SIMBUS." << std::endl;
-                return false;
-            }
-            std::string buf = input.substr(6, input.length() - 6);
-            if(_current_in_mode == HEX){
-                buf = convert_asciihex_to_hexhex(buf);
-            }
-            int wlen = buf.length();
+                ss << "Connection has not been instantiated. Connect to a bus with SET SIMBUS." << std::endl;
+            } else {
+                std::string buf = input.substr(6, input.length() - 6);
+                if(_current_in_mode == HEX){
+                    buf = convert_asciihex_to_hexhex(buf);
+                }
+                int wlen = buf.length();
 
-            try{
-                _bus_connection->write(buf.c_str(), wlen);
-            }catch (std::runtime_error e){
-                std::cout << e.what() << std::endl;
+                try{
+                    _bus_connection->write(buf.c_str(), wlen);
+                }catch (std::runtime_error e){
+                    ss << e.what() << std::endl;
+                }
             }
-            
         }
         else if (in_upper.compare(0, 5, "READ ") == 0)
         {
             if(_bus_connection.get() == nullptr){
-                std::cout << "Connection has not been instantiated. Connect to a bus with SET SIMBUS." << std::endl;
-                return false;
-            }
-            char buf[255];
-            int len;
-            std::string len_string = input.substr(5, input.length());
-            try{
-                len = stoi(len_string);
-            }catch (std::invalid_argument e){
-                len = 0;
-            }
+                ss << "Connection has not been instantiated. Connect to a bus with SET SIMBUS." << std::endl;
+            } else {
+                char buf[255];
+                int len;
+                std::string len_string = input.substr(5, input.length());
+                try{
+                    len = stoi(len_string);
+                }catch (std::invalid_argument e){
+                    len = 0;
+                }
 
-            try {
-                _bus_connection->read(buf, len);
-                write_message_to_cout(buf, len);
-            }catch (std::runtime_error e){
-                std::cout << e.what() << std::endl;
-            }
-            
+                try {
+                    _bus_connection->read(buf, len);
+                    write_message_to_cout(buf, len);
+                }catch (std::runtime_error e){
+                    ss << e.what() << std::endl;
+                }
+            }            
         }
         else if (in_upper.compare(0, 9, "TRANSACT ") == 0)
         {
             if(_bus_connection.get() == nullptr){
-                std::cout << "Connection has not been instantiated. Connect to a bus with SET SIMBUS." << std::endl;
-                return false;
-            }
-            char rbuf[255];
-            int rlen;
-            int numberStart = 9;
-            int dataStart;
+                ss << "Connection has not been instantiated. Connect to a bus with SET SIMBUS." << std::endl;
+            } else {
+                char rbuf[255];
+                int rlen;
+                int numberStart = 9;
+                int dataStart;
 
-            boost::iterator_range<std::string::iterator> r = boost::find_nth(input, " ", 1);
-            dataStart = std::distance(input.begin(), r.begin()) + 1;
+                boost::iterator_range<std::string::iterator> r = boost::find_nth(input, " ", 1);
+                dataStart = std::distance(input.begin(), r.begin()) + 1;
 
-            try {
-                rlen = stoi(input.substr(numberStart, dataStart - numberStart));
-            }catch (std::invalid_argument){
-                std::cout << "\"" << input.substr(numberStart, dataStart - numberStart) << "\" is not a valid number." << std::endl;
-                return false;
-            }
-
-            //std::cout << "rlen: " << rlen << ", Data: " << input.substr(dataStart, input.length() - dataStart) << std::endl;
-
-            std::string wbuf = input.substr(dataStart, input.length() - dataStart);
-            if(_current_in_mode == HEX){
-                wbuf = convert_asciihex_to_hexhex(wbuf);
-            }
-            int wlen = wbuf.length();
-            try {
-                _bus_connection->transact(wbuf.c_str(), wlen, rbuf, rlen);
-                write_message_to_cout(rbuf, rlen);
-            }catch (std::runtime_error e){
-                std::cout << e.what() << std::endl;
+                std::string wbuf = input.substr(dataStart, input.length() - dataStart);
+                if(_current_in_mode == HEX){
+                    wbuf = convert_asciihex_to_hexhex(wbuf);
+                }
+                int wlen = wbuf.length();
+                try {
+                    rlen = stoi(input.substr(numberStart, dataStart - numberStart));
+                    //ss << "rlen: " << rlen << ", Data: " << input.substr(dataStart, input.length() - dataStart) << std::endl;
+                    _bus_connection->transact(wbuf.c_str(), wlen, rbuf, rlen);
+                    write_message_to_cout(rbuf, rlen);
+                }catch (std::invalid_argument){
+                    ss << "\"" << input.substr(numberStart, dataStart - numberStart) << "\" is not a valid number." << std::endl;
+                }catch (std::runtime_error e){
+                    ss << e.what() << std::endl;
+                }
             }
         }
         else if (input.length() > 0)
         {
-            std::cout << "Unrecognized command \"" << input << "\". Type \"HELP\" for help." << std::endl;
+            ss << "Unrecognized command \"" << input << "\". Type \"HELP\" for help." << std::endl;
         }
-        return false;
+        return ss.str();
     }
 
     void SimTerminal::reset_bus_connection(){

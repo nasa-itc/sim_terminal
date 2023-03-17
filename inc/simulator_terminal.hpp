@@ -63,7 +63,7 @@ namespace Nos3
         void handle_input(void);
         std::string string_prompt(void);
         bool getline(const std::string& prompt, std::string& input);
-        bool process_command(std::string input);
+        std::string process_command(std::string input);
         void reset_bus_connection();
         
         std::string mode_as_string(void);
