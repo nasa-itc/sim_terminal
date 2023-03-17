@@ -56,14 +56,14 @@ namespace Nos3
         // private types
         enum SimTerminalMode {HEX, ASCII};
         enum BusType {BASE, I2C, CAN, SPI, UART, COMMAND};
+        enum PromptType {LONG, SHORT, NONE};
         const std::string _bus_type_string[6] = {"BASE", "I2C", "CAN", "SPI", "UART", "COMMAND"};
 
         // private helper methods
-        std::string string_prompt(void);
-        void command_callback(const NosEngine::Common::Message& msg);
-        bool process_command(std::string input);
-        bool getline(const std::string& prompt, std::string& input);
         void handle_input(void);
+        std::string string_prompt(void);
+        bool getline(const std::string& prompt, std::string& input);
+        bool process_command(std::string input);
         void reset_bus_connection();
         
         std::string mode_as_string(void);
@@ -84,7 +84,7 @@ namespace Nos3
         std::unique_ptr<class BusConnection> _bus_connection;
         enum SimTerminalMode _current_in_mode;
         enum SimTerminalMode _current_out_mode;
-        bool _long_prompt;
+        enum PromptType _prompt;
     };
 }
 
