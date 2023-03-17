@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <thread>
+#include <mutex>
 #include <memory>
 #include <stdexcept>
 
@@ -61,6 +62,7 @@ namespace Nos3
 
         // private helper methods
         void handle_input(void);
+        void handle_udp(void);
         std::string string_prompt(void);
         bool getline(const std::string& prompt, std::string& input);
         std::string process_command(std::string input);
@@ -85,6 +87,7 @@ namespace Nos3
         enum SimTerminalMode _current_in_mode;
         enum SimTerminalMode _current_out_mode;
         enum PromptType _prompt;
+        std::mutex _processing_mutex;
     };
 }
 

@@ -22,6 +22,11 @@
 #include <memory>
 #include <stdexcept>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
 #include <readline/readline.h>
 #include <readline/history.h>
 
@@ -96,9 +101,12 @@ namespace Nos3
     /// \brief Runs the server, creating the NOS Engine bus and the transports for the simulator and simulator client to connect to.
     void SimTerminal::run(void)
     {
+        std::thread *udp_thread = NULL;
         try
         {
+            udp_thread = new std::thread(std::bind(&Nos3::SimTerminal::handle_udp, this)); // Spawn thread to respond to UDP messages
             handle_input(); // when handle_input returns... it is time to quit
+            udp_thread->join();
         }
         catch(...)
         {
@@ -123,6 +131,39 @@ namespace Nos3
     {
         NosEngine::Common::DataBufferOverlay dbf(const_cast<NosEngine::Utility::Buffer&>(msg.buffer));
         write_message_to_cout(dbf.data, dbf.len);
+    }
+
+    #define PORT 5555
+    #define MAXLINE 1024
+    void SimTerminal::handle_udp(void)
+    {
+        int sockfd;
+        char buffer[MAXLINE];
+        struct sockaddr_in servaddr, cliaddr;
+        if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+            std::cout << "SimTerminal::handle_udp - Failed to create a socket";
+        } else {
+            memset(&servaddr, 0, sizeof(servaddr));
+            servaddr.sin_family = AF_INET;
+            servaddr.sin_addr.s_addr = INADDR_ANY;
+            servaddr.sin_port = htons(PORT);
+            if (bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
+                std::cout << "SimTerminal::handle_udp - Failed to bind to socket";
+            } else {
+                socklen_t len;
+                int n;
+                len = sizeof(cliaddr);
+                while(strncmp(buffer, "QUIT", 4) != 0) {
+                    n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL, (struct sockaddr *)&cliaddr, &len);
+                    buffer[n] = '\0';
+                    std::string input(buffer);
+                    std::string result = process_command(input);
+                    sendto(sockfd, result.c_str(), result.size(), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
+                    std::string prompt = string_prompt();
+                    sendto(sockfd, prompt.c_str(), prompt.size(), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
+                }
+            }
+        }
     }
 
     void SimTerminal::handle_input(void)
@@ -177,6 +218,7 @@ namespace Nos3
     }
 
     std::string SimTerminal::process_command(std::string input){
+        _processing_mutex.lock();
         std::string in_upper = input;
         boost::to_upper(in_upper);
         std::stringstream ss;
@@ -362,7 +404,10 @@ namespace Nos3
         {
             ss << "Unrecognized command \"" << input << "\". Type \"HELP\" for help." << std::endl;
         }
-        return ss.str();
+
+        std::string retval = ss.str();
+        _processing_mutex.unlock();
+        return retval;
     }
 
     void SimTerminal::reset_bus_connection(){
