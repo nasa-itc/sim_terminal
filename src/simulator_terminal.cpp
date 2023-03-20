@@ -61,7 +61,10 @@ namespace Nos3
         _bus_name(config.get("simulator.hardware-model.bus.name", "command")),
         _current_in_mode((config.get("simulator.hardware-model.input-mode", "").compare("HEX") == 0) ? HEX : ASCII),
         _current_out_mode((config.get("simulator.hardware-model.output-mode", "").compare("HEX") == 0) ? HEX : ASCII),
-        _prompt(LONG)
+        _prompt(LONG),
+        _terminal_type((config.get("simulator.hardware-model.terminal.type", "STDIO").compare("STDIO") == 0) ? STDIO : UDP),
+        _udp_port(config.get("simulator.hardware-model.terminal.udp-port", 5555)),
+        _suppress_output(config.get("simulator.hardware-model.terminal.suppress-output", false))
     {
         std::string bus_type = config.get("simulator.hardware-model.bus.name", "command");
         if (!set_bus_type(bus_type)) {
@@ -101,12 +104,20 @@ namespace Nos3
     /// \brief Runs the server, creating the NOS Engine bus and the transports for the simulator and simulator client to connect to.
     void SimTerminal::run(void)
     {
-        std::thread *udp_thread = NULL;
         try
         {
-            udp_thread = new std::thread(std::bind(&Nos3::SimTerminal::handle_udp, this)); // Spawn thread to respond to UDP messages
-            handle_input(); // when handle_input returns... it is time to quit
-            udp_thread->join();
+            // when handle_* returns... it is time to quit
+            switch(_terminal_type)
+            {
+            case STDIO:
+                handle_input();
+                break;
+            case UDP:
+                handle_udp();
+                break;
+            default:
+                Nos3::sim_logger->error("SimTerminal::run: Invalid terminal type %s (valid types are STDIO, UDP)", _terminal_type_string[_terminal_type].c_str());            
+            }
         }
         catch(...)
         {
@@ -133,7 +144,6 @@ namespace Nos3
         write_message_to_cout(dbf.data, dbf.len);
     }
 
-    #define PORT 5555
     #define MAXLINE 1024
     void SimTerminal::handle_udp(void)
     {
@@ -146,7 +156,7 @@ namespace Nos3
             memset(&servaddr, 0, sizeof(servaddr));
             servaddr.sin_family = AF_INET;
             servaddr.sin_addr.s_addr = INADDR_ANY;
-            servaddr.sin_port = htons(PORT);
+            servaddr.sin_port = htons(_udp_port);
             if (bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
                 std::cout << "SimTerminal::handle_udp - Failed to bind to socket";
             } else {
@@ -158,9 +168,11 @@ namespace Nos3
                     buffer[n] = '\0';
                     std::string input(buffer);
                     std::string result = process_command(input);
-                    sendto(sockfd, result.c_str(), result.size(), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
-                    std::string prompt = string_prompt();
-                    sendto(sockfd, prompt.c_str(), prompt.size(), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
+                    if (!_suppress_output) {
+                        sendto(sockfd, result.c_str(), result.size(), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
+                        std::string prompt = string_prompt();
+                        sendto(sockfd, prompt.c_str(), prompt.size(), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
+                    }
                 }
             }
         }
@@ -176,7 +188,7 @@ namespace Nos3
             if (result.compare("QUIT") == 0) {
                 break;
             } else {
-                std::cout << result;
+                if (!_suppress_output) std::cout << result;
             }
         }
 
@@ -218,7 +230,6 @@ namespace Nos3
     }
 
     std::string SimTerminal::process_command(std::string input){
-        _processing_mutex.lock();
         std::string in_upper = input;
         boost::to_upper(in_upper);
         std::stringstream ss;
@@ -291,7 +302,7 @@ namespace Nos3
             if (prompt_type.compare("LONG") == 0) _prompt = LONG;
             else if (prompt_type.compare("SHORT") == 0) _prompt = SHORT;
             else if (prompt_type.compare("NONE") == 0) _prompt = NONE;
-            else ss << "Invalid prompt length specified" << prompt_type << std::endl;
+            else ss << "Invalid prompt length specified " << prompt_type << std::endl;
         }
         else if (in_upper.compare(0, 20, "LIST NOS CONNECTIONS") == 0) 
         {
@@ -406,7 +417,6 @@ namespace Nos3
         }
 
         std::string retval = ss.str();
-        _processing_mutex.unlock();
         return retval;
     }
 

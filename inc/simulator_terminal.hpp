@@ -20,7 +20,6 @@
 
 #include <iostream>
 #include <thread>
-#include <mutex>
 #include <memory>
 #include <stdexcept>
 
@@ -57,8 +56,10 @@ namespace Nos3
         // private types
         enum SimTerminalMode {HEX, ASCII};
         enum BusType {BASE, I2C, CAN, SPI, UART, COMMAND};
-        enum PromptType {LONG, SHORT, NONE};
         const std::string _bus_type_string[6] = {"BASE", "I2C", "CAN", "SPI", "UART", "COMMAND"};
+        enum PromptType {LONG, SHORT, NONE};
+        enum TerminalType {STDIO, UDP};
+        const std::string _terminal_type_string[2] = {"STDIO", "UDP"};
 
         // private helper methods
         void handle_input(void);
@@ -87,7 +88,9 @@ namespace Nos3
         enum SimTerminalMode _current_in_mode;
         enum SimTerminalMode _current_out_mode;
         enum PromptType _prompt;
-        std::mutex _processing_mutex;
+        enum TerminalType _terminal_type;
+        int _udp_port;
+        bool _suppress_output;
     };
 }
 
