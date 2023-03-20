@@ -165,7 +165,7 @@ namespace Nos3
                 len = sizeof(cliaddr);
                 while(strncmp(buffer, "QUIT", 4) != 0) {
                     n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL, (struct sockaddr *)&cliaddr, &len);
-                    buffer[n] = '\0';
+                    buffer[n-1] = '\0';
                     std::string input(buffer);
                     std::string result = process_command(input);
                     if (!_suppress_output) {
