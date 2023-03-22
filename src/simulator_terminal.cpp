@@ -138,17 +138,28 @@ namespace Nos3
         std::cout << std::endl;
     }
 
+    std::stringstream SimTerminal::write_message_to_stream(const char* buf, size_t len){
+        std::stringstream ss;
+        for (unsigned int i = 0; i < len; i++) {
+            if (_current_out_mode == HEX) {
+                ss << " 0x" << convert_hexhexchar_to_asciihexchars(buf[i]);
+            } else {
+                ss << buf[i];
+            }
+        }
+        return ss;
+    }
+
     void SimTerminal::write_message_to_cout(const NosEngine::Common::Message& msg)
     {
         NosEngine::Common::DataBufferOverlay dbf(const_cast<NosEngine::Utility::Buffer&>(msg.buffer));
         write_message_to_cout(dbf.data, dbf.len);
     }
 
-    #define MAXLINE 1024
     void SimTerminal::handle_udp(void)
     {
         int sockfd;
-        char buffer[MAXLINE];
+        char buffer[_MAXLINE];
         struct sockaddr_in servaddr, cliaddr;
         if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
             std::cout << "SimTerminal::handle_udp - Failed to create a socket";
@@ -163,16 +174,22 @@ namespace Nos3
                 socklen_t len;
                 int n;
                 len = sizeof(cliaddr);
-                while(strncmp(buffer, "QUIT", 4) != 0) {
-                    n = recvfrom(sockfd, (char *)buffer, MAXLINE, MSG_WAITALL, (struct sockaddr *)&cliaddr, &len);
-                    buffer[n-1] = '\0';
-                    std::string input(buffer);
+                std::string input(buffer);
+                boost::to_upper(input);
+                boost::trim(input);
+                while(input.compare("QUIT") != 0) {
+                    n = recvfrom(sockfd, (char *)buffer, _MAXLINE, 0, (struct sockaddr *)&cliaddr, &len);
+                    buffer[n] = '\0';
+                    input = buffer;
                     std::string result = process_command(input);
                     if (!_suppress_output) {
-                        sendto(sockfd, result.c_str(), result.size(), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
-                        std::string prompt = string_prompt();
-                        sendto(sockfd, prompt.c_str(), prompt.size(), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
+                        if (result.size() > 0) sendto(sockfd, result.c_str(), result.size(), 0, (const struct sockaddr *)&cliaddr, len);
                     }
+                    std::string prompt = string_prompt();
+                    if (prompt.size() > 0) sendto(sockfd, prompt.c_str(), prompt.size(), 0, (const struct sockaddr *)&cliaddr, len);
+
+                    boost::to_upper(input);
+                    boost::trim(input);
                 }
             }
         }
@@ -180,7 +197,7 @@ namespace Nos3
 
     void SimTerminal::handle_input(void)
     {
-        std::string input, in_upper;
+        std::string input;
         std::cout << "This is the simulator terminal program.  Type 'HELP' for help." << std::endl << std::endl;
         while(getline(string_prompt(), input)) // keep looping and getting the next command line
         {
@@ -198,18 +215,21 @@ namespace Nos3
     std::string SimTerminal::string_prompt(void)
     {
         std::stringstream ss;
-        if (_prompt == LONG) {
-            ss  << _command_node_name 
-                << "-" << _active_connection_name
-                << "<" << _other_node_name << ">" 
-                << ":(" << _bus_type_string[_bus_type] << ")" << _bus_name
-                << ":[" << mode_as_string() << "] $ ";
-        } else if (_prompt == SHORT) {
-            ss  <<          _command_node_name
-                << "-->" << _other_node_name
-                << "@(" << _bus_type_string[_bus_type] << ")" << _bus_name
-                << "[" << mode_as_string() << "] $ ";
-        } // else, no prompt, let ss blank
+        if (!_suppress_output) {
+            if (_prompt == LONG) {
+                ss  <<         _command_node_name 
+                    << "-"  << _active_connection_name
+                    << "<"  << _other_node_name            << ">" 
+                    << ":(" << _bus_type_string[_bus_type] << ")"    << _bus_name
+                    << ":[" << mode_as_string()            << "] $ ";
+            } else if (_prompt == SHORT) {
+                ss  <<         _command_node_name
+                    << "-"  << _active_connection_name
+                    << "->" << _other_node_name
+                    << "@(" << _bus_type_string[_bus_type] << ")"    << _bus_name
+                    << "["  << mode_as_string()            << "] $ ";
+            } // else, no prompt, let ss blank
+        } // else, suppress output, let ss blank
         return ss.str();
     }
 
@@ -230,15 +250,24 @@ namespace Nos3
     }
 
     std::string SimTerminal::process_command(std::string input){
-        std::string in_upper = input;
-        boost::to_upper(in_upper);
+        std::string input_trimmed = input;
+        boost::trim(input_trimmed);
+        std::stringstream tokenizer(input_trimmed);
+        std::string token;
+        std::vector<std::string> input_tokens, input_tokens_upper;
+        while (tokenizer.good()) {
+            tokenizer >> token;
+            input_tokens.push_back(token);
+            boost::to_upper(token);
+            input_tokens_upper.push_back(token);
+        }
         std::stringstream ss;
 
-        if (in_upper.compare(0, 4, "HELP") == 0) 
+        if ((input_tokens_upper.size() == 1) && (input_tokens_upper[0].compare("HELP") == 0))
         {
             ss << "This is help for the simulator terminal program." << std::endl;
             ss << "  The prompt shows the <simulator terminal node name@simulator bus name> and <simulator node being commanded> " << std::endl;
-            ss << "  Commands:" << std::endl;
+            ss << "  Commands (case only matters for non-enumerated arguments; whitespace only matters for separating tokens):" << std::endl;
             ss << "    HELP - Displays this help" << std::endl;
             ss << "    QUIT - Exits the program" << std::endl;
             ss << "    SET SIMNODE <sim node> - Sets the simulator node being commanded to '<sim node>'" << std::endl;
@@ -248,6 +277,7 @@ namespace Nos3
             ss << "    SET TERMNODE <term node> - Sets the name of this terminal's node to '<term node>'" << std::endl;
             ss << "    SET <ASCII|HEX> <IN|OUT> - Sets the terminal mode to ASCII mode or HEX mode; optionally IN or OUT only" << std::endl;
             ss << "    SET PROMPT <LONG|SHORT|NONE> - Sets the prompt to long format, short format, or none" << std::endl;
+            ss << "    SUPPRESS OUTPUT <ON|OFF> - Suppresses output or not" << std::endl;
             ss << "    LIST NOS CONNECTIONS - Lists all of the known NOS Engine connection strings along with a name for selecting them" << std::endl;
             ss << "    SET NOS CONNECTION <name> - Sets the NOS Engine connection to the one associated with <name> (initially \"default\")" << std::endl;
             ss << "    ADD NOS CONNECTION <name> <uri> - Adds NOS Engine URI connection string <uri> to the list of known connection strings and associates it with <name>" << std::endl;
@@ -256,97 +286,102 @@ namespace Nos3
             ss << "    TRANSACT <read length> <data> - Performs a transaction. Sends the given data, and expects a return value of the given length." << std::endl;
             ss << "             Interprets everything after the first space after <read length> as data to be written." << std::endl;
         } 
-        else if (in_upper.compare(0, 12, "SET SIMNODE ") == 0) 
+        else if ((input_tokens_upper.size() == 3) && (input_tokens_upper[0].compare("SET") == 0) && (input_tokens_upper[1].compare("SIMNODE") == 0))
         {
-            _other_node_name = input.substr(12, input.size() - 12);
+            _other_node_name = input_tokens[2];
             _bus_connection->set_target(_other_node_name);
         } 
-        else if (in_upper.compare(0, 11, "SET SIMBUS ") == 0) 
+        else if ((input_tokens_upper.size() == 3) && (input_tokens_upper[0].compare("SET") == 0) && (input_tokens_upper[1].compare("SIMBUS") == 0))
         {
-            std::string new_command_bus_name = input.substr(11, input.size() - 11);
+            std::string new_command_bus_name = input_tokens[2];
             if(new_command_bus_name.compare(_bus_name) != 0){
                 _bus_name = new_command_bus_name;
                 reset_bus_connection();
             }else{
-                ss << "Already on bus " << _bus_name << std::endl;
+                ss << "Already on bus: " << _bus_name << "." << std::endl;
             }
         } 
-        else if (in_upper.compare(0, 15, "SET SIMBUSTYPE ") == 0) 
+        else if ((input_tokens_upper.size() == 3) && (input_tokens_upper[0].compare("SET") == 0) && (input_tokens_upper[1].compare("SIMBUSTYPE") == 0))
         {
-            std::string new_command_bus_type = input.substr(15, input.size() - 15);
+            std::string new_command_bus_type = input_tokens_upper[2];
             if (set_bus_type(new_command_bus_type)) {
                 reset_bus_connection();
             } else {
-                 ss << "Invalid bus type setting " << new_command_bus_type << ".  Not changing bus type." << std::endl;
+                 ss << "Invalid bus type setting: " << new_command_bus_type << ".  Not changing bus type." << std::endl;
             }
         } 
-        else if (in_upper.compare(0, 13, "SET TERMNODE ") == 0) 
+        else if ((input_tokens_upper.size() == 3) && (input_tokens_upper[0].compare("SET") == 0) && (input_tokens_upper[1].compare("TERMNODE") == 0))
         {
-            _command_node_name = input.substr(13, input.length());
+            _command_node_name = input_tokens[2];
             reset_bus_connection();
         } 
-        else if (in_upper.compare(0, 9, "SET ASCII") == 0) 
+        else if ((input_tokens_upper.size() >=2) && (input_tokens_upper[0].compare("SET") == 0) && (input_tokens_upper[1].compare("ASCII") == 0))
         {
-            if ((input.size() == 9) || (in_upper.compare(0, 12, "SET ASCII IN") == 0)) _current_in_mode = ASCII;
-            if ((input.size() == 9) || (in_upper.compare(0, 13, "SET ASCII OUT") == 0)) _current_out_mode = ASCII;
+            std::string in_out = "";
+            if (input_tokens_upper.size() >= 3) in_out = input_tokens_upper[2];
+            if ((in_out.compare("") == 0) || (in_out.compare("IN") == 0)) _current_in_mode = ASCII;
+            if ((in_out.compare("") == 0) || (in_out.compare("OUT") == 0)) _current_out_mode = ASCII;
         } 
-        else if (in_upper.compare(0, 7, "SET HEX") == 0) 
+        else if ((input_tokens_upper.size() >=2) && (input_tokens_upper[0].compare("SET") == 0) && (input_tokens_upper[1].compare("HEX") == 0))
         {
-            if ((input.size() == 7) || (in_upper.compare(0, 10, "SET HEX IN") == 0)) _current_in_mode = HEX;
-            if ((input.size() == 7) || (in_upper.compare(0, 11, "SET HEX OUT") == 0)) _current_out_mode = HEX;
+            std::string in_out = "";
+            if (input_tokens_upper.size() >= 3) in_out = input_tokens_upper[2];
+            if ((in_out.compare("") == 0) || (in_out.compare("IN") == 0)) _current_in_mode = HEX;
+            if ((in_out.compare("") == 0) || (in_out.compare("OUT") == 0)) _current_out_mode = HEX;
         } 
-        else if (in_upper.compare(0, 11, "SET PROMPT ") == 0) 
+        else if ((input_tokens_upper.size() == 3) && (input_tokens_upper[0].compare("SET") == 0) && (input_tokens_upper[1].compare("PROMPT") == 0))
         {
-            std::string prompt_type = input.substr(11, input.size() - 11);
-            boost::to_upper(prompt_type);
+            std::string prompt_type = input_tokens_upper[2];
             if (prompt_type.compare("LONG") == 0) _prompt = LONG;
             else if (prompt_type.compare("SHORT") == 0) _prompt = SHORT;
             else if (prompt_type.compare("NONE") == 0) _prompt = NONE;
-            else ss << "Invalid prompt length specified " << prompt_type << std::endl;
+            else ss << "Invalid prompt length specified: " << prompt_type << "." << std::endl;
         }
-        else if (in_upper.compare(0, 20, "LIST NOS CONNECTIONS") == 0) 
+        else if ((input_tokens_upper.size() == 3) && (input_tokens_upper[0].compare("SUPPRESS") == 0) && (input_tokens_upper[1].compare("OUTPUT") == 0))
+        {
+            std::string on_off = input_tokens_upper[2];
+            if (on_off.compare("ON") == 0) _suppress_output = true;
+            else if (on_off.compare("OFF") == 0) _suppress_output = false;
+            else ss << "Invalid suppress output flag specified (valid values are ON, OFF): " << on_off << "." << std::endl;
+        }
+        else if ((input_tokens_upper.size() == 3) && (input_tokens_upper[0].compare("LIST") == 0) && (input_tokens_upper[1].compare("NOS") == 0) && (input_tokens_upper[2].compare("CONNECTIONS") == 0))
         {
             for (std::map<std::string, std::string>::const_iterator it = _connection_strings.begin(); it != _connection_strings.end(); it++)
                 ss << "    name=" << it->first << ", connection string=" << it->second << std::endl;
         }
-        else if (in_upper.compare(0, 19, "SET NOS CONNECTION ") == 0) 
+        else if ((input_tokens_upper.size() == 4) && (input_tokens_upper[0].compare("SET") == 0) && (input_tokens_upper[1].compare("NOS") == 0) && (input_tokens_upper[2].compare("CONNECTION") == 0))
         {
-            std::string name = input.substr(19, input.size() - 19);
+            std::string name = input_tokens[3];
+            std::string old_connection_string = _nos_connection_string;
             try {
                 std::string connection_string = _connection_strings.at(name);
                 if (connection_string.compare(_nos_connection_string) != 0) {
                     _nos_connection_string = connection_string;
-                    _active_connection_name = name;
                     reset_bus_connection();
+                    _active_connection_name = name; // set after reset in case it throws
+                } else {
+                    ss << "Connection string is the same as the current one; doing nothing." << std::endl;
                 }
             } catch (std::exception&) {
-                ss << "Invalid connection name \"" << name << "\"" << std::endl;
+                _nos_connection_string = old_connection_string;
+                ss << "Invalid connection: \"" << name << "\"." << std::endl;
             }
         }
-        else if (in_upper.compare(0, 19, "ADD NOS CONNECTION ") == 0) 
+        else if ((input_tokens_upper.size() == 5) && (input_tokens_upper[0].compare("ADD") == 0) && (input_tokens_upper[1].compare("NOS") == 0) && (input_tokens_upper[2].compare("CONNECTION") == 0))
         {
-            std::string token;
-            std::vector<std::string> tokens;
-            std::stringstream ss(input);
-            while (std::getline(ss, token, ' ')) {
-                tokens.push_back(token);
-            }
-            if (tokens.size() == 5) {
-                _connection_strings[tokens[3]] = tokens[4];
-            } else {
-                ss << "Invalid ADD NOS CONNECTION command \"" << input << "\".  Type \"HELP\" for help." << std::endl;
-            }
+            _connection_strings[input_tokens[3]] = input_tokens[4];
         }
-        else if (in_upper.compare(0, 4, "QUIT") == 0) 
+        else if ((input_tokens_upper.size() == 1) && (input_tokens_upper[0].compare("QUIT") == 0))
         {
             ss << "QUIT";
         }
-        else if (in_upper.compare(0, 6, "WRITE ") == 0)
+        else if ((input_tokens_upper.size() >= 2) && (input_tokens_upper[0].compare("WRITE") == 0))
         {
             if(_bus_connection.get() == nullptr){
                 ss << "Connection has not been instantiated. Connect to a bus with SET SIMBUS." << std::endl;
             } else {
                 std::string buf = input.substr(6, input.length() - 6);
+                boost::trim(buf);
                 if(_current_in_mode == HEX){
                     buf = convert_asciihex_to_hexhex(buf);
                 }
@@ -359,14 +394,14 @@ namespace Nos3
                 }
             }
         }
-        else if (in_upper.compare(0, 5, "READ ") == 0)
+        else if ((input_tokens_upper.size() == 2) && (input_tokens_upper[0].compare("READ") == 0))
         {
             if(_bus_connection.get() == nullptr){
                 ss << "Connection has not been instantiated. Connect to a bus with SET SIMBUS." << std::endl;
             } else {
                 char buf[255];
                 int len;
-                std::string len_string = input.substr(5, input.length());
+                std::string len_string = input_tokens[1];
                 try{
                     len = stoi(len_string);
                 }catch (std::invalid_argument e){
@@ -375,37 +410,37 @@ namespace Nos3
 
                 try {
                     _bus_connection->read(buf, len);
-                    write_message_to_cout(buf, len);
+                    ss = write_message_to_stream(buf, len);
                 }catch (std::runtime_error e){
                     ss << e.what() << std::endl;
                 }
             }            
         }
-        else if (in_upper.compare(0, 9, "TRANSACT ") == 0)
+        else if ((input_tokens_upper.size() >= 3) && (input_tokens_upper[0].compare("TRANSACT") == 0))
         {
             if(_bus_connection.get() == nullptr){
                 ss << "Connection has not been instantiated. Connect to a bus with SET SIMBUS." << std::endl;
             } else {
                 char rbuf[255];
                 int rlen;
-                int numberStart = 9;
                 int dataStart;
 
                 boost::iterator_range<std::string::iterator> r = boost::find_nth(input, " ", 1);
                 dataStart = std::distance(input.begin(), r.begin()) + 1;
 
                 std::string wbuf = input.substr(dataStart, input.length() - dataStart);
+                boost::trim(wbuf);
                 if(_current_in_mode == HEX){
                     wbuf = convert_asciihex_to_hexhex(wbuf);
                 }
                 int wlen = wbuf.length();
                 try {
-                    rlen = stoi(input.substr(numberStart, dataStart - numberStart));
+                    rlen = stoi(input_tokens[1]);
                     //ss << "rlen: " << rlen << ", Data: " << input.substr(dataStart, input.length() - dataStart) << std::endl;
                     _bus_connection->transact(wbuf.c_str(), wlen, rbuf, rlen);
-                    write_message_to_cout(rbuf, rlen);
+                    ss = write_message_to_stream(rbuf, rlen);
                 }catch (std::invalid_argument){
-                    ss << "\"" << input.substr(numberStart, dataStart - numberStart) << "\" is not a valid number." << std::endl;
+                    ss << "\"" << input_tokens[1] << "\" is not a valid number." << std::endl;
                 }catch (std::runtime_error e){
                     ss << e.what() << std::endl;
                 }
@@ -552,6 +587,7 @@ namespace Nos3
     {
         bool succeeded = true;
         boost::to_upper(type);
+        boost::trim(type);
         if (type.compare("BASE") == 0) {
             _bus_type = BASE;
         } else if (type.compare("I2C") == 0) {

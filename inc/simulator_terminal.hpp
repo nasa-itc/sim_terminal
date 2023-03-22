@@ -47,8 +47,10 @@ namespace Nos3
         // Constructors
         SimTerminal(const boost::property_tree::ptree& config);
 
+        // Mutators
         void run(void);
 
+        // Accessors
         void write_message_to_cout(const char* buf, size_t len);
         void write_message_to_cout(const NosEngine::Common::Message& msg);
 
@@ -69,6 +71,8 @@ namespace Nos3
         std::string process_command(std::string input);
         void reset_bus_connection();
         
+        // private helper helpers
+        std::stringstream write_message_to_stream(const char* buf, size_t len);
         std::string mode_as_string(void);
         std::string convert_hexhexchar_to_asciihexchars(uint8_t in);
         char convert_hexhexnibble_to_asciihexchar(uint8_t in);
@@ -77,7 +81,8 @@ namespace Nos3
         uint8_t convert_asciihexchar_to_hexhexchar(char in);
         bool set_bus_type(std::string type);
 
-        // Private data
+        // private data
+        static const int _MAXLINE = 1024;
         std::map<std::string, std::string> _connection_strings;
         std::string _nos_connection_string;
         std::string _active_connection_name;
