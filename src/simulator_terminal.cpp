@@ -58,7 +58,7 @@ namespace Nos3
         _current_out_mode((config.get("simulator.hardware-model.output-mode", "").compare("HEX") == 0) ? HEX : ASCII),
         _long_prompt(true)
     {
-        std::string bus_type = config.get("simulator.hardware-model.bus.name", "command");
+        std::string bus_type = config.get("simulator.hardware-model.bus.type", "command");
         if (!set_bus_type(bus_type)) {
             sim_logger->error("Invalid bus type setting %s.  Setting bus type to COMMAND.", bus_type.c_str());
         }
