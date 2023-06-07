@@ -26,7 +26,7 @@ namespace Nos3 {
             int address = stoi(_target);
             _i2c->i2c_write(address, reinterpret_cast<const uint8_t*>(buf), len);
             std::cout << "Wrote " << len << " bytes to I2C address " << address << std::endl;
-        }catch(std::invalid_argument e){
+        }catch(std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid I2C address. To select an address, use SET SIMNODE.";
             throw std::runtime_error(ss.str());
@@ -57,7 +57,7 @@ namespace Nos3 {
                 break;
             }
             std::cout << std::endl;
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid I2C address. To select an address, use SET SIMNODE.";
             throw std::runtime_error(ss.str());
@@ -71,7 +71,7 @@ namespace Nos3 {
         try {
             int address = stoi(_target);
             _i2c->i2c_transaction(address, reinterpret_cast<const uint8_t*>(wbuf), wlen, reinterpret_cast<uint8_t*>(rbuf), rlen);
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid I2C address. To select an address, use SET SIMNODE.";
             throw std::runtime_error(ss.str());
@@ -96,7 +96,7 @@ namespace Nos3 {
             int address = stoi(_target);
             _can->can_write(address, reinterpret_cast<const uint8_t*>(buf), len);
             std::cout << "Wrote " << len << " bytes to CAN address " << address << std::endl;
-        }catch(std::invalid_argument e){
+        }catch(std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid CAN identifier. To select an identifier, use SET SIMNODE.";
             throw std::runtime_error(ss.str());
@@ -127,7 +127,7 @@ namespace Nos3 {
                 break;
             }
             std::cout << std::endl;
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid CAN identifier. To select an identifier, use SET SIMNODE.";
             throw std::runtime_error(ss.str());
@@ -141,7 +141,7 @@ namespace Nos3 {
         try {
             int address = stoi(_target);
             _can->can_transaction(address, reinterpret_cast<const uint8_t*>(wbuf), wlen, reinterpret_cast<uint8_t*>(rbuf), rlen);
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid CAN identifier. To select an identifier, use SET SIMNODE.";
             throw std::runtime_error(ss.str());
@@ -165,7 +165,7 @@ namespace Nos3 {
             _spi->spi_write(reinterpret_cast<const uint8_t*>(buf), len);
             _spi->unselect_chip();
             std::cout << "Wrote " << len << " bytes to SPI device " << select << std::endl;
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid select line. Must be a number.";
             throw std::runtime_error(ss.str());
@@ -178,7 +178,7 @@ namespace Nos3 {
             _spi->select_chip(select);
             _spi->spi_read(reinterpret_cast<uint8_t*>(buf), len);
             _spi->unselect_chip();
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid select line. Must be a number.";
             throw std::runtime_error(ss.str());
@@ -191,7 +191,7 @@ namespace Nos3 {
             _spi->select_chip(select);
             _spi->spi_transaction(reinterpret_cast<const uint8_t*>(wbuf), wlen, reinterpret_cast<uint8_t*>(rbuf), rlen);
             _spi->unselect_chip();
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid select line. Must be a number.";
             throw std::runtime_error(ss.str());
@@ -219,7 +219,7 @@ namespace Nos3 {
             _uart->open(port);
             _uart->write(reinterpret_cast<const uint8_t*>(buf), len);
             _uart->close();
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid UART port. Must be a number.";
             throw std::runtime_error(ss.str());

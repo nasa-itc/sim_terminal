@@ -57,8 +57,8 @@ namespace Nos3
 
     // Constructors
     SimTerminal::SimTerminal(const boost::property_tree::ptree& config) : SimIHardwareModel(config),
-        _other_node_name(config.get("simulator.hardware-model.other-node-name", "time")),
         _bus_name(config.get("simulator.hardware-model.bus.name", "command")),
+        _other_node_name(config.get("simulator.hardware-model.other-node-name", "time")),
         _current_in_mode((config.get("simulator.hardware-model.input-mode", "").compare("HEX") == 0) ? HEX : ASCII),
         _current_out_mode((config.get("simulator.hardware-model.output-mode", "").compare("HEX") == 0) ? HEX : ASCII),
         _prompt(LONG),
@@ -389,7 +389,7 @@ namespace Nos3
 
                 try{
                     _bus_connection->write(buf.c_str(), wlen);
-                }catch (std::runtime_error e){
+                }catch (std::runtime_error &e){
                     ss << e.what() << std::endl;
                 }
             }
@@ -404,14 +404,14 @@ namespace Nos3
                 std::string len_string = input_tokens[1];
                 try{
                     len = stoi(len_string);
-                }catch (std::invalid_argument e){
+                }catch (std::invalid_argument &e){
                     len = 0;
                 }
 
                 try {
                     _bus_connection->read(buf, len);
                     ss = write_message_to_stream(buf, len);
-                }catch (std::runtime_error e){
+                }catch (std::runtime_error &e){
                     ss << e.what() << std::endl;
                 }
             }            
@@ -439,9 +439,9 @@ namespace Nos3
                     //ss << "rlen: " << rlen << ", Data: " << input.substr(dataStart, input.length() - dataStart) << std::endl;
                     _bus_connection->transact(wbuf.c_str(), wlen, rbuf, rlen);
                     ss = write_message_to_stream(rbuf, rlen);
-                }catch (std::invalid_argument){
+                }catch (std::invalid_argument &e){
                     ss << "\"" << input_tokens[1] << "\" is not a valid number." << std::endl;
-                }catch (std::runtime_error e){
+                }catch (std::runtime_error &e){
                     ss << e.what() << std::endl;
                 }
             }
@@ -461,7 +461,7 @@ namespace Nos3
             int master_address;
             try{
                 master_address = stoi(_command_node_name);
-            }catch(std::invalid_argument e){
+            }catch(std::invalid_argument &e){
                 master_address = 127;
                 _command_node_name = "127";
                 std::cout << "\"" << _command_node_name << "\" is not a valid I2C address for the terminal. Defaulting to 127." << std::endl;
@@ -479,7 +479,7 @@ namespace Nos3
             int master_identifier;
             try{
                 master_identifier = stoi(_command_node_name);
-            }catch(std::invalid_argument e){
+            }catch(std::invalid_argument &e){
                 master_identifier = 127;
                 _command_node_name = "127";
                 std::cout << "\"" << _command_node_name << "\" is not a valid CAN identifier for the terminal. Defaulting to 127." << std::endl;
