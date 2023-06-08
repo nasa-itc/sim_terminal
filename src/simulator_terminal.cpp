@@ -551,7 +551,7 @@ namespace Nos3
     char SimTerminal::convert_hexhexnibble_to_asciihexchar(uint8_t in)
     {
         char out = '.';
-        if ((0x0 <= in) && (in <= 0x9)) out = in - 0x0 + '0';
+        if (in <= 0x9) out = in - 0x0 + '0';
         if ((0xA <= in) && (in <= 0xF)) out = in - 0xA + 'A';
         return out;
     }

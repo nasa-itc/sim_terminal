@@ -202,7 +202,7 @@ namespace Nos3 {
         _uart.reset(new NosEngine::Uart::Uart(node_name, connection_string, bus_name));
         _terminal = terminal;
         _uart->set_read_callback([this, bus_name](const uint8_t* const buf, size_t len, void* user){
-            std::cout << std::endl << "Received a UART message on bus " << bus_name << ": " << std::endl;
+            std::cout << std::endl << "Received a UART message on bus " << bus_name << " (user " << user << "): " << std::endl;
             _terminal->write_message_to_cout(reinterpret_cast<const char*>(buf), len);
         });
     }
@@ -226,7 +226,7 @@ namespace Nos3 {
         }
     }
 
-    void UartConnection::read(char* buf, size_t len){
+    void UartConnection::read(__attribute__((unused)) char* buf, __attribute__((unused)) size_t len){
         if(_uart->available() > 0){
             throw std::runtime_error("I haven't implemented this yet.");
         }else{
@@ -234,7 +234,8 @@ namespace Nos3 {
         }
     }
 
-    void UartConnection::transact(const char* wbuf, size_t wlen, char* rbuf, size_t rlen){
+    void UartConnection::transact(__attribute__((unused)) const char* wbuf, __attribute__((unused)) size_t wlen, 
+        __attribute__((unused)) char* rbuf, __attribute__((unused)) size_t rlen){
         throw std::runtime_error("Error: Cannot perform transactions on UART bus.");
     }
 
@@ -259,7 +260,7 @@ namespace Nos3 {
         _node->send_non_confirmed_message_async(_target, len, buf);
     }
 
-    void BaseConnection::read(char* buf, size_t len){
+    void BaseConnection::read(__attribute__((unused)) char* buf, __attribute__((unused)) size_t len){
         throw std::runtime_error("Error: Cannot read from a normal bus.");
     }
 
