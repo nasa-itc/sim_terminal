@@ -70,7 +70,8 @@ namespace Nos3
         if (!set_bus_type(bus_type)) {
             sim_logger->error("Invalid bus type setting %s.  Setting bus type to COMMAND.", bus_type.c_str());
         }
-        _nos_connection_string = config.get("common.nos-connection-string", "tcp://127.0.0.1:12001");
+//        _nos_connection_string = config.get("common.nos-connection-string", "tcp://127.0.0.1:12001");
+        _nos_connection_string = config.get("common.nos-connection-string", "tcp://0.0.0.0:12001");
         _command_node_name = config.get("simulator.hardware-model.terminal-node-name", "terminal");
 
         _connection_strings["default"] = _nos_connection_string;

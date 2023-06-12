@@ -10,7 +10,8 @@
                     <suppress-output>false</suppress-output> <!-- should output from bus be sent back to STDOUT/UDP client? -->
                 </terminal>
                 <other-nos-connections>
-                    <nos-connection><name>spacecraft1</name><connection-string>tcp://192.168.42.101:12001</connection-string></nos-connection>
+                    <!-- nos-connection><name>spacecraft1</name><connection-string>tcp://192.168.42.101:12001</connection-string></nos-connection -->
+                    <nos-connection><name>spacecraft1</name><connection-string>tcp://0.0.0.0:12001</connection-string></nos-connection>
                 </other-nos-connections>
                 <bus><name>command</name><type>command</type><!-- type = COMMAND, I2C, SPI, UART, CAN --></bus>
                 <terminal-node-name>stdio-terminal</terminal-node-name>
@@ -36,7 +37,8 @@
                     <suppress-output>false</suppress-output> <!-- should output from bus be sent back to STDOUT/UDP client? -->
                 </terminal>
                 <other-nos-connections>
-                    <nos-connection><name>spacecraft1</name><connection-string>tcp://192.168.42.101:12001</connection-string></nos-connection>
+                    <!-- nos-connection><name>spacecraft1</name><connection-string>tcp://192.168.42.101:12001</connection-string></nos-connection -->
+                    <nos-connection><name>spacecraft1</name><connection-string>tcp://0.0.0.0:12001</connection-string></nos-connection>
                 </other-nos-connections>
                 <bus><name>command</name><type>command</type><!-- type = COMMAND, I2C, SPI, UART, CAN --></bus>
                 <terminal-node-name>udp-terminal</terminal-node-name>
