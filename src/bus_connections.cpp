@@ -26,7 +26,7 @@ namespace Nos3 {
             int address = stoi(_target);
             _i2c->i2c_write(address, reinterpret_cast<const uint8_t*>(buf), len);
             std::cout << "Wrote " << len << " bytes to I2C address " << address << std::endl;
-        }catch(std::invalid_argument e){
+        }catch(std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid I2C address. To select an address, use SET SIMNODE.";
             throw std::runtime_error(ss.str());
@@ -39,8 +39,25 @@ namespace Nos3 {
         }
         try {
             int address = stoi(_target);
-            printf("Result: %d\n", _i2c->i2c_read(address, reinterpret_cast<uint8_t*>(buf), len));
-        }catch (std::invalid_argument e){
+            NosEngine::I2C::Result result = _i2c->i2c_read(address, reinterpret_cast<uint8_t*>(buf), len);
+            std::cout << "Result: ";
+            switch (result)
+            {
+            case NosEngine::I2C::Result::I2C_SUCCESS:
+                std::cout << "I2C Success";
+                break;
+            case NosEngine::I2C::Result::I2C_ERROR:
+                std::cout << "I2C Error";
+                break;
+            case NosEngine::I2C::Result::I2C_BUSY:
+                std::cout << "I2C Busy";
+                break;
+            default:
+                std::cout << "Unknown";
+                break;
+            }
+            std::cout << std::endl;
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid I2C address. To select an address, use SET SIMNODE.";
             throw std::runtime_error(ss.str());
@@ -54,7 +71,7 @@ namespace Nos3 {
         try {
             int address = stoi(_target);
             _i2c->i2c_transaction(address, reinterpret_cast<const uint8_t*>(wbuf), wlen, reinterpret_cast<uint8_t*>(rbuf), rlen);
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid I2C address. To select an address, use SET SIMNODE.";
             throw std::runtime_error(ss.str());
@@ -79,7 +96,7 @@ namespace Nos3 {
             int address = stoi(_target);
             _can->can_write(address, reinterpret_cast<const uint8_t*>(buf), len);
             std::cout << "Wrote " << len << " bytes to CAN address " << address << std::endl;
-        }catch(std::invalid_argument e){
+        }catch(std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid CAN identifier. To select an identifier, use SET SIMNODE.";
             throw std::runtime_error(ss.str());
@@ -92,8 +109,25 @@ namespace Nos3 {
         }
         try {
             int address = stoi(_target);
-            printf("Result: %d\n", _can->can_read(address, reinterpret_cast<uint8_t*>(buf), len));
-        }catch (std::invalid_argument e){
+            NosEngine::Can::Result result = _can->can_read(address, reinterpret_cast<uint8_t*>(buf), len);
+            std::cout << "Result: ";
+            switch (result)
+            {
+            case NosEngine::Can::Result::CAN_SUCCESS:
+                std::cout << "Can Success";
+                break;
+            case NosEngine::Can::Result::CAN_ERROR:
+                std::cout << "Can Error";
+                break;
+            case NosEngine::Can::Result::CAN_BUSY:
+                std::cout << "Can Busy";
+                break;
+            default:
+                std::cout << "Unknown";
+                break;
+            }
+            std::cout << std::endl;
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid CAN identifier. To select an identifier, use SET SIMNODE.";
             throw std::runtime_error(ss.str());
@@ -107,7 +141,7 @@ namespace Nos3 {
         try {
             int address = stoi(_target);
             _can->can_transaction(address, reinterpret_cast<const uint8_t*>(wbuf), wlen, reinterpret_cast<uint8_t*>(rbuf), rlen);
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid CAN identifier. To select an identifier, use SET SIMNODE.";
             throw std::runtime_error(ss.str());
@@ -131,7 +165,7 @@ namespace Nos3 {
             _spi->spi_write(reinterpret_cast<const uint8_t*>(buf), len);
             _spi->unselect_chip();
             std::cout << "Wrote " << len << " bytes to SPI device " << select << std::endl;
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid select line. Must be a number.";
             throw std::runtime_error(ss.str());
@@ -144,7 +178,7 @@ namespace Nos3 {
             _spi->select_chip(select);
             _spi->spi_read(reinterpret_cast<uint8_t*>(buf), len);
             _spi->unselect_chip();
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid select line. Must be a number.";
             throw std::runtime_error(ss.str());
@@ -157,7 +191,7 @@ namespace Nos3 {
             _spi->select_chip(select);
             _spi->spi_transaction(reinterpret_cast<const uint8_t*>(wbuf), wlen, reinterpret_cast<uint8_t*>(rbuf), rlen);
             _spi->unselect_chip();
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid select line. Must be a number.";
             throw std::runtime_error(ss.str());
@@ -168,7 +202,7 @@ namespace Nos3 {
         _uart.reset(new NosEngine::Uart::Uart(node_name, connection_string, bus_name));
         _terminal = terminal;
         _uart->set_read_callback([this, bus_name](const uint8_t* const buf, size_t len, void* user){
-            std::cout << std::endl << "Received a UART message on bus " << bus_name << ": " << std::endl;
+            std::cout << std::endl << "Received a UART message on bus " << bus_name << " (user " << user << "): " << std::endl;
             _terminal->write_message_to_cout(reinterpret_cast<const char*>(buf), len);
         });
     }
@@ -185,14 +219,14 @@ namespace Nos3 {
             _uart->open(port);
             _uart->write(reinterpret_cast<const uint8_t*>(buf), len);
             _uart->close();
-        }catch (std::invalid_argument e){
+        }catch (std::invalid_argument &e){
             std::stringstream ss;
             ss << "Error: \"" << _target << "\" is not a valid UART port. Must be a number.";
             throw std::runtime_error(ss.str());
         }
     }
 
-    void UartConnection::read(char* buf, size_t len){
+    void UartConnection::read(__attribute__((unused)) char* buf, __attribute__((unused)) size_t len){
         if(_uart->available() > 0){
             throw std::runtime_error("I haven't implemented this yet.");
         }else{
@@ -200,7 +234,8 @@ namespace Nos3 {
         }
     }
 
-    void UartConnection::transact(const char* wbuf, size_t wlen, char* rbuf, size_t rlen){
+    void UartConnection::transact(__attribute__((unused)) const char* wbuf, __attribute__((unused)) size_t wlen, 
+        __attribute__((unused)) char* rbuf, __attribute__((unused)) size_t rlen){
         throw std::runtime_error("Error: Cannot perform transactions on UART bus.");
     }
 
@@ -225,7 +260,7 @@ namespace Nos3 {
         _node->send_non_confirmed_message_async(_target, len, buf);
     }
 
-    void BaseConnection::read(char* buf, size_t len){
+    void BaseConnection::read(__attribute__((unused)) char* buf, __attribute__((unused)) size_t len){
         throw std::runtime_error("Error: Cannot read from a normal bus.");
     }
 

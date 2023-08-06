@@ -25,14 +25,12 @@ set(sim_terminal_libs
     ${Boost_LIBRARIES}
     ${ITC_Common_LIBRARIES}
     ${NOSENGINE_LIBRARIES}
+    readline
+    history
 )
-
+ 
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:$ORIGIN/../lib") # Pick up .so in install directory
 
 add_library(sim_terminal SHARED ${sim_terminal_src} ${sim_terminal_inc})
 target_link_libraries(sim_terminal ${sim_terminal_libs})
 install(TARGETS sim_terminal LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
-
-add_executable(nos3-simulator-terminal src/nos3_simulator_terminal.cpp)
-target_link_libraries(nos3-simulator-terminal sim_terminal ${sim_terminal_libs})
-install(TARGETS nos3-simulator-terminal RUNTIME DESTINATION bin)
